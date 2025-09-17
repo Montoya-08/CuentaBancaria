@@ -1,33 +1,48 @@
 /*
- * Entidad de dominio: Cuenta.
- *
- * Esta clase representa el modelo de una cuenta dentro de la capa de dominio
- * en una arquitectura limpia (Clean Architecture).
- *
- * Su responsabilidad es definir las propiedades esenciales de una cuenta
- * sin importar la base de datos o el framework que se use.
+ * @module CuentaModel
+ * @description Modelo Mongoose para la entidad Cuenta.
+ * Este archivo define cómo se estructura una cuenta en la base de datos MongoDB.
  */
 
-class Cuenta {
+import mongoose from "mongoose";
 
-    /*
-     * Constructor de la clase Cuenta.
-     *
-     * @param {Object} params - Parámetros de inicialización de la cuenta.
-     * @param {Object} cuentaData - Datos de la cuenta a crear.
-     * @param {number|string} cuentaData.id - Identificador único de la cuenta.
-     * @param {number} cuentaData.nroCuenta - Número de la cuenta.
-     * @param {string} userData.nombreCliente - Nombre completo del cliente.
-     * @param {string} userData.saldo - Saldo de la cuenta.
-     *
-    */
+/*
+ * @constant cuentaSchema
+ * @description Esquema de Mongoose que define los campos de una cuenta.
+ * - nroCuenta: número único de la cuenta bancaria.
+ * - nombreCliente: nombre completo del titular.
+ * - saldo: cantidad de dinero disponible en la cuenta.
+ * - transacciones: cantidad de transacciones.
+ */
 
-    constructor({ id, nroCuenta, nombreCliente, saldo }) {
-      this.id = id; // Asigna el identificador único al objeto creado
-      this.nroCuenta = nroCuenta; // Asigna el número de cuenta al objeto
-      this.nombreCliente = this.nombreCliente; // Asigna el nombre al cliente del objeto
-      this.saldo = saldo; // Asigna el saldo al objeto
-    }
+const cuentaSchema = new mongoose.Schema({
+  nroCuenta: {
+    type: Number,
+    required: true,
+    unique: true // Evita duplicados de número de cuenta
+  },
+  nombreCliente: {
+    type: String,
+    required: true
+  },
+  saldo: {
+    type: Number,
+    default: 0,
+    min: 0 // No permite saldos negativos al crear
+  },
+  totalTransacciones: {
+    type: Number,
+    default: 0,
+    min: 0 // No permite valores negativos
   }
- 
-  export default Cuenta; // Exporta la clase para usarla en otras capas del proyecto  
+});
+
+/*
+ * @constant CuentaModel
+ * @description Modelo Mongoose basado en el esquema definido.
+ * Este modelo se usa para interactuar con la colección 'cuentas' en MongoDB.
+ */
+
+const CuentaModel = mongoose.model("Cuenta", cuentaSchema);
+
+export default CuentaModel;

@@ -1,86 +1,180 @@
-import { Router } from "express";
-import {
-  createCuenta,
-  getCuentas,
-  getCuentaById,
-  updateCuenta,
-  deleteCuenta
-} from "../controllers/cuentaController";
-
-const router = Router();
-
 /*
- * @module CuentaRoutes
- * @description Rutas para la gestión de cuentas (CRUD).
+ * @module cuentaController
+ * @description Controlador para operaciones CRUD sobre cuentas bancarias usando MongoDB.
  */
 
-/*
- * Crea una nueva cuenta.
- * @name POST /
- * @function
- * @memberof module:CuentaRoutes
- * @param {Object} req - Objeto de petición HTTP.
- * @param {Object} req.body - Datos de la cuenta a crear.
- * @param {number} req.body.nroCuenta - Número de la cuenta.
- * @param {string} req.body.nombreCliente - Nombre completo del cliente.
- * @param {string} req.body.saldo - Saldo de la cuenta.
- * @param {Object} res - Objeto de respuesta HTTP.
- * @returns {Object} Usuario creado.
- */
-
-router.post("/", createCuenta);
+import Cuenta from "../../domain/module/Cuenta.js";
 
 /*
- * Obtiene todos las cuentas.
- * @name GET /
- * @function
- * @memberof module:CuentaRoutes
- * @param {Object} req - Objeto de petición HTTP.
- * @param {Object} res - Objeto de respuesta HTTP.
- * @returns {Array<Object>} Lista de cuentas.
+ * @function createCuenta
+ * @description Crea una nueva cuenta en MongoDB.
+ * @param {object} req - Solicitud HTTP con los datos de la cuenta.
+ * @param {object} res - Respuesta HTTP.
  */
+export const createCuenta = async (req, res) => {
+  try {
+    const { nroCuenta, nombreCliente, saldo, totalTransacciones } = req.body;
 
-router.get("/", getCuentas);
+    const nuevaCuenta = new Cuenta({
+      nroCuenta,
+      nombreCliente,
+      saldo: Number(saldo) || 0,
+      totalTransacciones: Number(totalTransacciones) || 0
+    });
+
+    await nuevaCuenta.save();
+
+    res.status(201).json({
+      message: "Cuenta creada exitosamente",
+      cuenta: nuevaCuenta
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al crear la cuenta",
+      error: error.message
+    });
+  }
+};
 
 /*
- * Obtiene una cuenta por su ID.
- * @name GET /:id
- * @function
- * @memberof module:CuentaRoutes
- * @param {Object} req - Objeto de petición HTTP.
- * @param {string} req.params.id - ID de la cuenta a obtener.
- * @param {Object} res - Objeto de respuesta HTTP.
- * @returns {Object} Cuenta encontrada o error 404 si no existe.
+ * @function getCuentas
+ * @description Obtiene todas las cuentas desde MongoDB.
  */
-
-router.get("/:id", getCuentaById);
+export const getCuentas = async (req, res) => {
+  try {
+    const cuentas = await Cuenta.find();
+    res.status(200).json({
+      message: "Cuentas obtenidas exitosamente",
+      cuentas
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener las cuentas",
+      error: error.message
+    });
+  }
+};
 
 /*
- * Actualiza una cuenta por su ID.
- * @name PUT /:id
- * @function
- * @memberof module:CuentaRoutes
- * @param {Object} req - Objeto de petición HTTP.
- * @param {string} req.params.id - ID de la cuenta a actualizar.
- * @param {Object} req.body - Datos a actualizar de la cuenta.
- * @param {string} req.body.saldo - Nuevo saldo de la cuenta.
- * @param {Object} res - Objeto de respuesta HTTP.
- * @returns {Object} Cuenta actualizada o error 404 si no existe.
+ * @function getCuentaById
+ * @description Obtiene una cuenta por su ID desde MongoDB.
  */
+export const getCuentaById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cuenta = await Cuenta.findById(id);
 
-router.put("/:id", updateCuenta);
+    if (!cuenta) {
+      return res.status(404).json({ message: "Cuenta no encontrada" });
+    }
+
+    res.status(200).json({
+      message: "Cuenta encontrada",
+      cuenta
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener la cuenta",
+      error: error.message
+    });
+  }
+};
 
 /*
- * Elimina una cuenta por su ID.
- * @name DELETE /:id
- * @function
- * @memberof module:CuentaRoutes
- * @param {Object} req - Objeto de petición HTTP.
- * @param {string} req.params.id - ID de la cuenta a eliminar.
- * @param {Object} res - Objeto de respuesta HTTP.
- * @returns {Object} Mensaje de confirmación o error 404 si no existe.
+ * @function consignarSaldo
+ * @description Suma un monto al saldo de una cuenta e incrementa totalTransacciones.
  */
+export const consignarSaldo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { monto } = req.body;
+    const montoNum = Number(monto);
 
-router.delete("/:id", deleteCuenta);
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      return res.status(400).json({ message: "Monto inválido" });
+    }
 
-export default router;
+    const cuenta = await Cuenta.findById(id);
+    if (!cuenta) {
+      return res.status(404).json({ message: "Cuenta no encontrada" });
+    }
+
+    cuenta.saldo += montoNum;
+    cuenta.totalTransacciones = (cuenta.totalTransacciones || 0) + 1;
+    await cuenta.save();
+
+    res.status(200).json({
+      message: "Consignación exitosa",
+      cuenta
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al consignar saldo",
+      error: error.message
+    });
+  }
+};
+
+/*
+ * @function retirarSaldo
+ * @description Resta un monto del saldo e incrementa totalTransacciones.
+ */
+export const retirarSaldo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { monto } = req.body;
+    const montoNum = Number(monto);
+
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      return res.status(400).json({ message: "Monto inválido" });
+    }
+
+    const cuenta = await Cuenta.findById(id);
+    if (!cuenta) {
+      return res.status(404).json({ message: "Cuenta no encontrada" });
+    }
+
+    if (cuenta.saldo < montoNum) {
+      return res.status(400).json({ message: "Fondos insuficientes" });
+    }
+
+    cuenta.saldo -= montoNum;
+    cuenta.totalTransacciones = (cuenta.totalTransacciones || 0) + 1;
+    await cuenta.save();
+
+    res.status(200).json({
+      message: "Retiro exitoso",
+      cuenta
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al retirar saldo",
+      error: error.message
+    });
+  }
+};
+
+/*
+ * @function deleteCuenta
+ * @description Elimina una cuenta de MongoDB por su ID.
+ */
+export const deleteCuenta = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cuentaEliminada = await Cuenta.findByIdAndDelete(id);
+
+    if (!cuentaEliminada) {
+      return res.status(404).json({ message: "Cuenta no encontrada para eliminar" });
+    }
+
+    res.status(200).json({
+      message: "Cuenta eliminada exitosamente",
+      cuenta: cuentaEliminada
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al eliminar la cuenta",
+      error: error.message
+    });
+  }
+};

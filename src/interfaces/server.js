@@ -1,5 +1,5 @@
 import express from "express";
-import cuentaRoutes from "../infrastructure/routes/cuentaRoutes";
+import cuentaRoutes from "../infrastructure/routes/cuentaRoutes.js";
 
 const app = express();
 
